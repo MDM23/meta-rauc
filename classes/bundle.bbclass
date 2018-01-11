@@ -1,24 +1,24 @@
 # Class for creating rauc bundles
 #
 # Description:
-# 
+#
 # You have to set the slot images in your recipe file following this example:
 #
 #   RAUC_BUNDLE_COMPATIBLE ?= "My Super Product"
 #   RAUC_BUNDLE_VERSION ?= "v2015-06-07-1"
-#   
+#
 #   RAUC_BUNDLE_HOOKS[file] ?= "hook.sh"
 #   RAUC_BUNDLE_HOOKS[hooks] ?= "install-check"
 #
 #   RAUC_BUNDLE_SLOTS ?= "rootfs kernel dtb bootloader"
-#   
+#
 #   RAUC_SLOT_rootfs ?= "core-image-minimal"
 #   RAUC_SLOT_rootfs[fstype] = "ext4"
 #   RAUC_SLOT_rootfs[hooks] ?= "install;post-install"
-#   
+#
 #   RAUC_SLOT_kernel ?= "linux-yocto"
 #   RAUC_SLOT_kernel[type] ?= "kernel"
-#   
+#
 #   RAUC_SLOT_bootloader ?= "barebox"
 #   RAUC_SLOT_bootloader[type] ?= "boot"
 #
@@ -31,6 +31,11 @@
 #
 #   RAUC_KEY_FILE ?= "development-1.key.pem"
 #   RAUC_CERT_FILE ?= "development-1.cert.pem"
+#
+# If your certificate has been signed by an intermediate CA, you can provide
+# its certificate file by using:
+#
+#   RAUC_INTERMEDIATE_CERT_FILE ?= "intermediate.cert.pem"
 
 LICENSE = "MIT"
 
@@ -73,6 +78,7 @@ S = "${WORKDIR}/bundle"
 
 RAUC_KEY_FILE ??= ""
 RAUC_CERT_FILE ??= ""
+RAUC_INTERMEDIATE_CERT_FILE ??= ""
 
 DEPENDS = "rauc-native squashfs-tools-native"
 
@@ -188,11 +194,23 @@ do_bundle() {
 	if [ -e ${B}/bundle.raucb ]; then
 		rm ${B}/bundle.raucb
 	fi
-	${STAGING_DIR_NATIVE}${bindir}/rauc bundle \
-		--cert=${RAUC_CERT_FILE} \
-		--key=${RAUC_KEY_FILE} \
-		${S} \
-		${B}/bundle.raucb
+
+    # If the user set an intermediate CA certificate with RAUC_INTERMEDIATE_CERT_FILE,
+    # we need to pass it to rauc bundle
+    if [ -n "${RAUC_INTERMEDIATE_CERT_FILE}" ]; then
+	    ${STAGING_DIR_NATIVE}${bindir}/rauc bundle \
+            --cert=${RAUC_CERT_FILE} \
+            --key=${RAUC_KEY_FILE} \
+            --intermediate=${RAUC_INTERMEDIATE_CERT_FILE} \
+            ${S} \
+            ${B}/bundle.raucb
+    else
+	    ${STAGING_DIR_NATIVE}${bindir}/rauc bundle \
+            --cert=${RAUC_CERT_FILE} \
+            --key=${RAUC_KEY_FILE} \
+            ${S} \
+            ${B}/bundle.raucb
+    fi
 }
 
 addtask bundle after do_configure before do_build
